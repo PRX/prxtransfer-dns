@@ -122,4 +122,4 @@ Resources:
         - { Key: prx:dev:application, Value: Broadcast Delivery }
 
 Outputs:
-  ConnectionTesterHealthCheckId: { Value: !GetAtt ConnectionTesterHealthCheck.HealthCheckId }
+  HealthCheckId: { Value: !GetAtt ConnectionTesterHealthCheck.HealthCheckId }
