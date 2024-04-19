@@ -24,14 +24,13 @@ jobs:
 
   deploy-connection-checks:
     runs-on: ubuntu-latest
+    needs: [check-project-std]
     strategy:
       matrix:
         # Regions where FTP servers are running
-        # target-region: [us-east-1, us-west-2]
-        target-region: [us-east-1]
+        target-region: [us-east-1, us-west-2]
         # Regions where connection checks should be run from
-        # check-region: [us-east-1, us-east-2, us-west-2]
-        check-region: [us-east-2]
+        check-region: [us-east-1, us-east-2, us-west-2]
 
     steps:
       - uses: actions/checkout@v4
