@@ -15,7 +15,7 @@ Parameters:
   ProdNlbHostnameUSWEST2: { Type: String }
 
   ProdHealthCheckIdsTargetingUSEAST1: { Type: CommaDelimitedList }
-  # ProdHealthCheckIdsTargetingUSWEST2: { Type: CommaDelimitedList }
+  ProdHealthCheckIdsTargetingUSWEST2: { Type: CommaDelimitedList }
 
 Conditions:
   CreateProdHealthCheckUSEAST1: !Not [!Equals [!Join ["", !Ref ProdHealthCheckIdsTargetingUSEAST1], ""]]
@@ -85,3 +85,4 @@ Outputs:
   Two: { Value: !Ref StagNlbHostnameUSWEST2 }
   Three: { Value: !Ref ProdNlbHostnameUSEAST1 }
   Four: { Value: !Ref ProdNlbHostnameUSWEST2 }
+  Five: { Value: !Ref ProdHealthCheckIdsTargetingUSWEST2 }
