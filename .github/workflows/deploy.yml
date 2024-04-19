@@ -78,7 +78,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.check-region }}-targeting-${{ matrix.target-region }}
-          path: health_check_id
+          path: components/ftp-connection-check/health_check_id
           retention-days: 1
 
   # deploy-hosted-zone:
