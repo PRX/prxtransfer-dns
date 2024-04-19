@@ -1,4 +1,4 @@
-name: Deploy application
+name: Deploy hosted zone and checks
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches:
       - main
     paths:
+      - .github/workflows/deploy.yml
       - template.yml
       - package.json
       - yarn.lock

@@ -7,3 +7,7 @@ It's expected that, for any given production FTP server, several of these stacks
 The status of the Route 53 health check matches the state of a CloudWatch alarm that is also created in the stack. The the Lambda function that is actually running the connection tests fails, the CloudWatch alarm will move into an ALARM state, which will cause the health check to move into an UNHEALTHY state.
 
 On their own, these health checks don't have any impact on other Route 5 resources, like DNS records. Other Route 53 health checks should be created that list these health checks as _child health checks_.
+
+### Deployment
+
+Deployment is expected to be handled by a continuous deployment GitHub Action (see deploy.yml), which uses a matrix strategy to deploy the correct combination of check- and target-regions.
