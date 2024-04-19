@@ -132,5 +132,5 @@ jobs:
                 StagNlbHostnameUSWEST2=$stag_usw2_nlb_hostname \
                 ProdNlbHostnameUSEAST1=$prod_use1_nlb_hostname \
                 ProdNlbHostnameUSWEST2=$prod_usw2_nlb_hostname \
-                ProdHealthCheckIdsTargetingUSEAST1=$us_east_1_check_ids
+                ProdHealthCheckIdsTargetingUSEAST1=$us_east_1_check_ids \
                 ProdHealthCheckIdsTargetingUSWEST2=$us_west_2_check_ids
