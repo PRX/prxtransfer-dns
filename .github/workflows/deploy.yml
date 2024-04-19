@@ -111,9 +111,7 @@ jobs:
           prod_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
 
           # Create a comma-delimited list of us-east-1 health check IDs
-          find . -path "*-targeting-us-east-1/health_check_id" -type f
           find . -path "*-targeting-us-east-1/health_check_id" -type f -exec cat {} \; > us_east_1
-          cat us_east_1
           us_east_1_check_ids=$(cat us_east_1 | awk '{printf("%s,",$0)}' | sed 's/,\s*$//')
 
           # Create a comma-delimited list of us-west-2 health check IDs
