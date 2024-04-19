@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  HealthCheckFtpUser: { Type: String }
+  HealthCheckFtpPassword: { NoEcho: true, Type: String }
+  FtpServerHostname: { Type: String }
+
+Resources:
+  BasicFtpLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Description: basic-ftp NPM module
+      ContentUri: lib/basic-ftp
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  # Creates a Lambda function to continuously test connections to a server. It
+  # will be invoked on a regular interval using a rule. If the connection fails,
+  # the execution will result in a Lambda error. A CloudWatch Alarm is
+  # triggered whenever the function is reporting errors. This CloudWatch alarm
+  # is used as the data source for a Route 53 Health Check; see below for more
+  # details.
+  ConnectionTesterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/ftp-connection-tester
+      Description: Tests connections to a specific FTP server
+      Environment:
+        Variables:
+          FQDN: !Ref FtpServerHostname
+          FTP_USER: !Ref HealthCheckFtpUser
+          FTP_PASSWORD: !Ref HealthCheckFtpPassword
+      Events:
+        Cron:
+          Properties:
+            Description: FTP server test
+            Schedule: rate(1 minute)
+            State: ENABLED
+          Type: Schedule
+      Handler: index.handler
+      Layers:
+        - !Ref BasicFtpLambdaLayer
+      MemorySize: 128
+      Runtime: nodejs20.x
+      Tags:
+        prx:meta:tagging-version: "2021-04-07"
+        prx:cloudformation:stack-name: !Ref AWS::StackName
+        prx:cloudformation:stack-id: !Ref AWS::StackId
+        prx:ops:environment: Production
+        prx:dev:application: Broadcast Delivery
+      Timeout: 10
+  ConnectionTesterLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ConnectionTesterFunction}
+      RetentionInDays: 14
+      Tags:
+        - { Key: prx:meta:tagging-version, Value: "2021-04-07" }
+        - { Key: prx:cloudformation:stack-name, Value: !Ref AWS::StackName }
+        - { Key: prx:cloudformation:stack-id, Value: !Ref AWS::StackId }
+        - { Key: prx:ops:environment, Value: Production }
+        - { Key: prx:dev:application, Value: Broadcast Delivery }
+  ConnectionTesterErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub WARN [FTP] us-east-1 Connection Test <prod> TEST FAILURES (${AWS::StackName})
+      AlarmDescription: >-
+        The production FTP connection tester for us-east-1 Transfer Family
+        servers is failing to connect. This generally means either the servers
+        or the authorization Lambda in us-east-1 are down, meaning those
+        servers are unavailable.
+
+        If all connection tests for this region fail, the region will be
+        removed from the DNS pool.
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ConnectionTesterFunction
+      EvaluationPeriods: 1
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Tags:
+        - { Key: prx:meta:tagging-version, Value: "2021-04-07" }
+        - { Key: prx:cloudformation:stack-name, Value: !Ref AWS::StackName }
+        - { Key: prx:cloudformation:stack-id, Value: !Ref AWS::StackId }
+        - { Key: prx:ops:environment, Value: Production }
+        - { Key: prx:dev:application, Value: Broadcast Delivery }
+      Threshold: 0
+      TreatMissingData: breaching
+
+  # This Route 53 Health Check uses the CloudWatch alarm from above as its data
+  # source. When the connection tester Lambda function is failing, the alarm
+  # will move into an alarm state, which causes this health check to move into
+  # an unhealthy state.
+  #
+  # Thus, when connections tests are failing, this health check should reflect
+  # that within a minute or two.
+  ConnectionTesterHealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        AlarmIdentifier:
+          Name: !Ref ConnectionTesterErrorAlarm
+          Region: !Ref AWS::Region
+        InsufficientDataHealthStatus: Unhealthy
+        Type: CLOUDWATCH_METRIC
+      HealthCheckTags:
+        # - { Key: Name, Value: !Sub "delivery_prod_us-east-1_synthetic_from-${AWS::Region}" }
+        - { Key: prx:meta:tagging-version, Value: "2021-04-07" }
+        - { Key: prx:cloudformation:stack-name, Value: !Ref AWS::StackName }
+        - { Key: prx:cloudformation:stack-id, Value: !Ref AWS::StackId }
+        - { Key: prx:ops:environment, Value: Production }
+        - { Key: prx:dev:application, Value: Broadcast Delivery }
