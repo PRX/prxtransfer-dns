@@ -1,0 +1,37 @@
+{
+  "name": "prxtransfer-dns",
+  "version": "1.0.0",
+  "description": "DNS for prxtransfer.org",
+  "type": "module",
+  "engines": {
+    "node": ">= 20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PRX/prxtransfer-dns.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0",
+  "private": "true",
+  "bugs": {
+    "url": "https://github.com/PRX/prxtransfer-dns/issues"
+  },
+  "homepage": "https://github.com/PRX/prxtransfer-dns#readme",
+  "dependencies": {
+    "basic-ftp": "*"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "eslint": "*",
+    "eslint-config-airbnb-base": "*",
+    "eslint-config-prettier": "*",
+    "eslint-plugin-import": "*",
+    "eslint-plugin-jest": "*",
+    "eslint-plugin-prettier": "*",
+    "jsdoc": "*",
+    "prettier": "*",
+    "typescript": "*",
+    "yarn": "*"
+  }
+}
