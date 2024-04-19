@@ -79,3 +79,9 @@ Resources:
   #     Statistic: Minimum
   #     Threshold: 1
   #     TreatMissingData: breaching
+
+Outputs:
+  One: { Value: !Ref StagNlbHostnameUSEAST1 }
+  Two: { Value: !Ref StagNlbHostnameUSWEST2 }
+  Three: { Value: !Ref ProdNlbHostnameUSEAST1 }
+  Four: { Value: !Ref ProdNlbHostnameUSWEST2 }
