@@ -70,3 +70,40 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
             --parameter-overrides "FtpServerHostname=$nlb_hostname HealthCheckFtpUser=\"$FTP_USER\" HealthCheckFtpPassword=\"$FTP_PASSWORD\""
+
+  deploy-hosted-zone:
+    runs-on: ubuntu-latest
+    needs: [deploy-connection-checks]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::561178107736:role/PRX-GHA-AccessRole
+          role-session-name: gha-deploy-prxtransfer-dns-connection-checker
+
+      - name: Deploy hosted zone stack
+        working-directory: components/hosted-zone
+        run: |
+          # Look up NLB hostnames for staging servers
+          stag_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
+          stag_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+
+          # Look up NLB hostnames for production servers
+          prod_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
+          prod_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+
+          aws cloudformation deploy \
+            --template-file template.yml \
+            --no-fail-on-empty-changeset \
+            --region us-east-1 \
+            --stack-name dev-hostedzone-prxtransfer-org \
+            --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
+            --parameter-overrides \
+                StagNlbHostnameUSEAST1=$stag_use1_nlb_hostname \
+                StagNlbHostnameUSWEST2=$stag_usw2_nlb_hostname \
+                ProdNlbHostnameUSEAST1=$prod_use1_nlb_hostname \
+                ProdNlbHostnameUSWEST2=$prod_usw2_nlb_hostname \
+                ProdHealthCheckIdsTargetingUSEAST1=
