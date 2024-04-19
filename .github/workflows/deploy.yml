@@ -1,0 +1,72 @@
+name: Deploy application
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - template.yml
+      - package.json
+      - yarn.lock
+      - components/**
+
+concurrency:
+  group: ${{ github.workflow }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  check-project-std:
+    uses: ./.github/workflows/check-project-std.yml
+
+  deploy-connection-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Regions where FTP servers are running
+        # target-region: [us-east-1, us-west-2]
+        target-region: [us-east-1]
+        # Regions where connection checks should be run from
+        # check-region: [us-east-1, us-east-2, us-west-2]
+        check-region: [us-east-2]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - uses: aws-actions/setup-sam@v2
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ matrix.check-region }}
+          role-to-assume: arn:aws:iam::561178107736:role/PRX-GHA-AccessRole
+          role-session-name: gha-deploy-prxtransfer-dns-connection-checker
+
+      - name: Deploy connection check
+        working-directory: components/ftp-connection-check
+        env:
+          FTP_USER: ${{ secrets.ftp_user }}
+          FTP_PASSWORD: ${{ secrets.ftp_password }}
+        # Lookup the Transfer Family NLB hostname for the current matrix target
+        # region and deploy a connection check to the current check region
+        # for that server.
+        run: |
+          nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region ${{ matrix.target-region }})
+
+          sam build && sam deploy \
+            --region ${{ matrix.check-region }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name ftp-connection-check-targeting-${{ matrix.target-region }} \
+            --resolve-s3 \
+            --no-progressbar \
+            --s3-prefix prxtransfer-dns \
+            --capabilities CAPABILITY_IAM \
+            --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
+            --parameter-overrides "FtpServerHostname=$nlb_hostname HealthCheckFtpUser=\"$FTP_USER\" HealthCheckFtpPassword=\"$FTP_PASSWORD\""

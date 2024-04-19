@@ -28,7 +28,7 @@ Resources:
   ConnectionTesterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/ftp-connection-tester
+      CodeUri: src
       Description: Tests connections to a specific FTP server
       Environment:
         Variables:
@@ -120,3 +120,6 @@ Resources:
         - { Key: prx:cloudformation:stack-id, Value: !Ref AWS::StackId }
         - { Key: prx:ops:environment, Value: Production }
         - { Key: prx:dev:application, Value: Broadcast Delivery }
+
+Outputs:
+  ConnectionTesterHealthCheckId: { Value: !GetAtt ConnectionTesterHealthCheck.HealthCheckId }
