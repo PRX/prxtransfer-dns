@@ -57,13 +57,15 @@ jobs:
         # region and deploy a connection check to the current check region
         # for that server.
         run: |
-          nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region ${{ matrix.target-region }})
+          stack_name="ftp-connection-check-targeting-${{ matrix.target-region }}"
+
+          nlb_hostname=$(aws cloudformation describe-stacks --region ${{ matrix.target-region }} --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text)
 
           sam build && sam deploy \
             --region ${{ matrix.check-region }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --stack-name ftp-connection-check-targeting-${{ matrix.target-region }} \
+            --stack-name "$stack_name" \
             --resolve-s3 \
             --no-progressbar \
             --s3-prefix prxtransfer-dns \
@@ -71,39 +73,87 @@ jobs:
             --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
             --parameter-overrides "FtpServerHostname=$nlb_hostname HealthCheckFtpUser=\"$FTP_USER\" HealthCheckFtpPassword=\"$FTP_PASSWORD\""
 
-  deploy-hosted-zone:
-    runs-on: ubuntu-latest
-    needs: [deploy-connection-checks]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
+          check_id=$(aws cloudformation describe-stacks --region ${{ matrix.check-region }} --stack-name "$stack_name" --query "Stacks[0].Outputs[?OutputKey=='HealthCheckId'].OutputValue" --output text)
+          echo "$check_id" > health_check_id
+      - uses: actions/upload-artifact@v4
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::561178107736:role/PRX-GHA-AccessRole
-          role-session-name: gha-deploy-prxtransfer-dns-connection-checker
+          name: ${{ matrix.check-region }}-targeting-${{ matrix.target-region }}
+          path: health_check_id
+          retention-days: 1
 
-      - name: Deploy hosted zone stack
-        working-directory: components/hosted-zone
-        run: |
-          # Look up NLB hostnames for staging servers
-          stag_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
-          stag_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+  # deploy-hosted-zone:
+  #   runs-on: ubuntu-latest
+  #   needs: [deploy-connection-checks]
 
-          # Look up NLB hostnames for production servers
-          prod_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
-          prod_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-          aws cloudformation deploy \
-            --template-file template.yml \
-            --no-fail-on-empty-changeset \
-            --region us-east-1 \
-            --stack-name dev-hostedzone-prxtransfer-org \
-            --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
-            --parameter-overrides \
-                StagNlbHostnameUSEAST1=$stag_use1_nlb_hostname \
-                StagNlbHostnameUSWEST2=$stag_usw2_nlb_hostname \
-                ProdNlbHostnameUSEAST1=$prod_use1_nlb_hostname \
-                ProdNlbHostnameUSWEST2=$prod_usw2_nlb_hostname \
-                ProdHealthCheckIdsTargetingUSEAST1=
+  #     - uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         aws-region: us-east-1
+  #         role-to-assume: arn:aws:iam::561178107736:role/PRX-GHA-AccessRole
+  #         role-session-name: gha-deploy-prxtransfer-dns-connection-checker
+
+  #     - name: Deploy hosted zone stack
+  #       working-directory: components/hosted-zone
+  #       run: |
+  #         ###
+  #         ### Look up NLB hostnames for staging servers
+  #         ###
+  #         stag_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
+  #         stag_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-staging --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+
+  #         ###
+  #         ### Look up NLB hostnames for production servers
+  #         ###
+  #         prod_use1_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-east-1)
+  #         prod_usw2_nlb_hostname=$(aws cloudformation describe-stacks --stack-name infrastructure-cd-root-production --query "Stacks[0].Outputs[?OutputKey=='ExchangeFtpServerNlbDnsName'].OutputValue" --output text --region us-west-2)
+
+  #         ###
+  #         ### Search across regions for connection check stacks and fetch the
+  #         ### HealthCheckId for each one. Those IDs get stored in arrays for
+  #         ### each target region.
+  #         ###
+  #         ### TODO This would be much cleaner if the deploy-connection-checks
+  #         ### job could store these values right after it does its work in a
+  #         ### way that could be fetched in this job.
+  #         ###
+  #         us_east_1_check_ids=(); \
+  #         us_west_2_check_ids=(); \
+
+  #         for region in us-east-1 us-east-2 us-west-2; \
+  #         do; \
+  #           stack_names=$(aws cloudformation list-stacks --region "$region" --profile prx-legacy --query "StackSummaries[?contains(StackName, 'ftp-connection-check-targeting-') == \`true\`].StackName" --output text); \
+
+  #           for stack_name in $stack_names; \
+  #           do; \
+  #             check_id=$(aws cloudformation describe-stacks --profile prx-legacy --stack-name "$stack_name" --query "Stacks[0].Outputs[?OutputKey=='HealthCheckId'].OutputValue" --output text --region "$region"); \
+
+  #             if [[ $stack_name == *"targeting-us-east-1"* ]]; \
+  #             then; \
+  #               us_east_1_check_ids+=("$check_id"); \
+  #             elif [[ $stack_name == *"targeting-us-west"* ]]; \
+  #             then; \
+  #               us_west_2_check_ids+=("$check_id"); \
+  #             fi; \
+  #           done; \
+  #         done; \
+
+  #         us_east_1_check_ids_str=$(IFS=,; echo "${us_east_1_check_ids[*]}"); \
+  #         us_west_2_check_ids_str=$(IFS=,; echo "${us_west_2_check_ids[*]}")
+
+  #         ###
+  #         ### Deploy the stack using all the values collected
+  #         ###
+  #         aws cloudformation deploy \
+  #           --template-file template.yml \
+  #           --no-fail-on-empty-changeset \
+  #           --region us-east-1 \
+  #           --stack-name dev-hostedzone-prxtransfer-org \
+  #           --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
+  #           --parameter-overrides \
+  #               StagNlbHostnameUSEAST1=$stag_use1_nlb_hostname \
+  #               StagNlbHostnameUSWEST2=$stag_usw2_nlb_hostname \
+  #               ProdNlbHostnameUSEAST1=$prod_use1_nlb_hostname \
+  #               ProdNlbHostnameUSWEST2=$prod_usw2_nlb_hostname \
+  #               ProdHealthCheckIdsTargetingUSEAST1=$us_east_1_check_ids_str
