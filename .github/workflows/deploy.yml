@@ -123,7 +123,7 @@ jobs:
             --template-file template.yml \
             --no-fail-on-empty-changeset \
             --region us-east-1 \
-            --stack-name dev-hostedzone-prxtransfer-org \
+            --stack-name hostedzone-prxtransfer-org \
             --role-arn arn:aws:iam::561178107736:role/PRX-GHA-ServiceRoleForCloudFormation \
             --parameter-overrides \
                 StagNlbHostnameUSEAST1=$stag_use1_nlb_hostname \
