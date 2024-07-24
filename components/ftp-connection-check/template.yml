@@ -114,7 +114,7 @@ Resources:
         InsufficientDataHealthStatus: Unhealthy
         Type: CLOUDWATCH_METRIC
       HealthCheckTags:
-        # - { Key: Name, Value: !Sub "delivery_prod_us-east-1_synthetic_from-${AWS::Region}" }
+        - { Key: Name, Value: !Join ["", ["delivery_prod_from-", !Ref AWS::Region, "_targeting-", !Select [2, !Split [".", !Ref FtpServerHostname]]]] }
         - { Key: prx:meta:tagging-version, Value: "2021-04-07" }
         - { Key: prx:cloudformation:stack-name, Value: !Ref AWS::StackName }
         - { Key: prx:cloudformation:stack-id, Value: !Ref AWS::StackId }
