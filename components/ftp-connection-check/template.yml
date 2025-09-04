@@ -17,7 +17,7 @@ Resources:
       Description: basic-ftp NPM module
       ContentUri: lib/basic-ftp
       CompatibleRuntimes:
-        - nodejs20.x
+        - nodejs22.x
 
   # Creates a Lambda function to continuously test connections to a server. It
   # will be invoked on a regular interval using a rule. If the connection fails,
