@@ -17,7 +17,7 @@ Resources:
       Description: basic-ftp NPM module
       ContentUri: lib/basic-ftp
       CompatibleRuntimes:
-        - nodejs22.x
+        - nodejs24.x
 
   # Creates a Lambda function to continuously test connections to a server. It
   # will be invoked on a regular interval using a rule. If the connection fails,
@@ -28,6 +28,7 @@ Resources:
   ConnectionTesterFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Architectures: [arm64]
       CodeUri: src
       Description: Tests connections to a specific FTP server
       Environment:
@@ -46,7 +47,7 @@ Resources:
       Layers:
         - !Ref BasicFtpLambdaLayer
       MemorySize: 128
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Tags:
         prx:meta:tagging-version: "2021-04-07"
         prx:cloudformation:stack-name: !Ref AWS::StackName
