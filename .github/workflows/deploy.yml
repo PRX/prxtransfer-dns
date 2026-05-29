@@ -75,7 +75,7 @@ jobs:
           echo "$check_id" > health_check_id
 
       - name: Capture health check ID
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.check-region }}-targeting-${{ matrix.target-region }}
           path: components/ftp-connection-check/health_check_id
