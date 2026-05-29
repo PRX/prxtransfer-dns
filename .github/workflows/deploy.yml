@@ -95,7 +95,7 @@ jobs:
           role-session-name: gha-deploy-prxtransfer-dns-connection-checker
 
       - name: Fetch health check IDs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: components/hosted-zone
 
