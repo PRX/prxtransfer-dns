@@ -34,7 +34,7 @@ jobs:
         check-region: [us-east-1, us-east-2, us-west-2]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: aws-actions/setup-sam@v3
         with:
@@ -86,7 +86,7 @@ jobs:
     needs: [deploy-connection-checks]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
